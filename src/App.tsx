@@ -52,24 +52,57 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Check for date change every minute to ensure UI "resets" for the new day
+    const dateInterval = setInterval(() => {
+      const now = new Date();
+      const todayStr = now.toLocaleDateString('en-CA'); // YYYY-MM-DD
+      const lastDate = localStorage.getItem('greens_last_active_date');
+      
+      if (lastDate && lastDate !== todayStr) {
+        // Date changed! Refresh to clear today's views
+        localStorage.setItem('greens_last_active_date', todayStr);
+        window.location.reload();
+      } else if (!lastDate) {
+        localStorage.setItem('greens_last_active_date', todayStr);
+      }
+    }, 1000 * 60);
+
     // Water reminder logic
-    const interval = setInterval(() => {
+    const reminderInterval = setInterval(() => {
       const notificationsEnabled = localStorage.getItem('notifications_enabled') === 'true';
       if (notificationsEnabled) {
         const now = new Date();
         const hour = now.getHours();
+        const todayStr = now.toLocaleDateString('en-CA');
         
         // Only remind between 9 AM and 9 PM
         if (hour >= 9 && hour <= 21) {
-          notificationService.sendNotification(
-            '수분 섭취 알림 💧',
-            '지금 시원한 물 한 잔 어떠신가요? 건강을 위해 수분을 충전하세요!'
-          );
+          const lastNotifyTime = localStorage.getItem('greens_last_notification_time');
+          const lastNotifyDate = localStorage.getItem('greens_last_notification_date');
+          
+          const twoHoursInMs = 1000 * 60 * 60 * 2;
+          const currentTime = now.getTime();
+          
+          // Send if:
+          // 1. Never sent before
+          // 2. Sent on a different day
+          // 3. Sent more than 2 hours ago
+          if (!lastNotifyTime || lastNotifyDate !== todayStr || (currentTime - parseInt(lastNotifyTime)) >= twoHoursInMs) {
+            notificationService.sendNotification(
+              '수분 섭취 알림 💧',
+              '지금 시원한 물 한 잔 어떠신가요? 건강을 위해 수분을 충전하세요!'
+            );
+            localStorage.setItem('greens_last_notification_time', currentTime.toString());
+            localStorage.setItem('greens_last_notification_date', todayStr);
+          }
         }
       }
-    }, 1000 * 60 * 60 * 2); // Every 2 hours
+    }, 1000 * 60); // Check every minute
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(dateInterval);
+      clearInterval(reminderInterval);
+    };
   }, []);
 
   if (loading) {

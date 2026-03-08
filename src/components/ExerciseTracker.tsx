@@ -52,19 +52,22 @@ export default function ExerciseTracker({ profile }: ExerciseTrackerProps) {
     fetchExercises();
   };
 
-  const calculateWalkingCalories = (mins: number) => {
-    // 1시간(60분) 기준 350kcal 소모 (200~400의 중간값)
-    // 1분당 약 5.83kcal
-    return Math.round(mins * 5.83);
+  const calculateCalories = (type: string, mins: number) => {
+    if (type.includes('걷기')) return Math.round(mins * 5.83);
+    if (type.includes('달리기')) return Math.round(mins * 10);
+    if (type.includes('요가')) return Math.round(mins * 4);
+    if (type.includes('웨이트')) return Math.round(mins * 6);
+    return 0;
   };
 
   useEffect(() => {
-    if (newExercise.type.includes('걷기') && newExercise.duration) {
-      const mins = parseInt(newExercise.duration);
-      if (!isNaN(mins)) {
+    const mins = parseInt(newExercise.duration);
+    if (!isNaN(mins) && newExercise.type) {
+      const calories = calculateCalories(newExercise.type, mins);
+      if (calories > 0) {
         setNewExercise(prev => ({
           ...prev,
-          caloriesBurned: calculateWalkingCalories(mins).toString()
+          caloriesBurned: calories.toString()
         }));
       }
     }
@@ -111,7 +114,7 @@ export default function ExerciseTracker({ profile }: ExerciseTrackerProps) {
                 </div>
                 <button 
                   onClick={() => exercise.id && handleDeleteExercise(exercise.id)}
-                  className="text-stone-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                  className="text-stone-300 hover:text-red-500 transition-all"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -252,8 +255,8 @@ export default function ExerciseTracker({ profile }: ExerciseTrackerProps) {
                       onChange={(e) => setNewExercise({ ...newExercise, caloriesBurned: e.target.value })}
                       className="w-full px-4 py-3 rounded-2xl bg-stone-50 border border-stone-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
                     />
-                    {newExercise.type.includes('걷기') && (
-                      <p className="text-[10px] text-emerald-600 font-medium mt-1">걷기 기준 자동 계산됨</p>
+                    {calculateCalories(newExercise.type, parseInt(newExercise.duration)) > 0 && (
+                      <p className="text-[10px] text-emerald-600 font-medium mt-1">운동 종류와 시간에 따라 자동 계산됨</p>
                     )}
                   </div>
                 </div>

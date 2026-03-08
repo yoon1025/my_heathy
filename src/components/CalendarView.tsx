@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, WeightLog, MealLog, WaterLog } from '../types';
+import { UserProfile, WeightLog, MealLog, WaterLog, ExerciseLog } from '../types';
 import { storage } from '../services/storage';
 import { 
   ChevronLeft, 
@@ -7,7 +7,9 @@ import {
   Utensils, 
   Droplets, 
   Scale,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Activity,
+  Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -21,7 +23,8 @@ import {
   isSameDay, 
   addMonths, 
   subMonths,
-  parseISO
+  parseISO,
+  isWithinInterval
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -36,36 +39,44 @@ export default function CalendarView({ profile }: CalendarViewProps) {
     meals: MealLog[];
     weights: WeightLog[];
     waters: WaterLog[];
-  }>({ meals: [], weights: [], waters: [] });
+    exercises: ExerciseLog[];
+  }>({ meals: [], weights: [], waters: [], exercises: [] });
 
   useEffect(() => {
     if (!profile) return;
 
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
+    const start = startOfWeek(startOfMonth(currentMonth));
+    const end = endOfWeek(endOfMonth(currentMonth));
 
-    // Fetch all logs for the month from local storage
+    // Fetch all logs from local storage
     const allMeals = storage.getMealLogs();
     const allWeights = storage.getWeightLogs();
     const allWaters = storage.getWaterLogs();
+    const allExercises = storage.getExerciseLogs();
 
+    // Filter logs for the visible interval in the calendar
     const filteredMeals = allMeals.filter(m => {
-      const d = new Date(m.date);
-      return d >= start && d <= end;
+      const d = parseISO(m.date);
+      return isWithinInterval(d, { start, end });
     });
     const filteredWeights = allWeights.filter(w => {
-      const d = new Date(w.date);
-      return d >= start && d <= end;
+      const d = parseISO(w.date);
+      return isWithinInterval(d, { start, end });
     });
     const filteredWaters = allWaters.filter(w => {
-      const d = new Date(w.date);
-      return d >= start && d <= end;
+      const d = parseISO(w.date);
+      return isWithinInterval(d, { start, end });
+    });
+    const filteredExercises = allExercises.filter(e => {
+      const d = parseISO(e.date);
+      return isWithinInterval(d, { start, end });
     });
 
     setMonthData({
       meals: filteredMeals,
       weights: filteredWeights,
-      waters: filteredWaters
+      waters: filteredWaters,
+      exercises: filteredExercises
     });
   }, [profile, currentMonth]);
 
@@ -75,9 +86,22 @@ export default function CalendarView({ profile }: CalendarViewProps) {
   });
 
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-  const dayMeals = monthData.meals.filter(m => m.date === selectedDateStr);
-  const dayWeight = monthData.weights.find(w => w.date === selectedDateStr);
-  const dayWater = monthData.waters.filter(w => w.date === selectedDateStr).reduce((acc, curr) => acc + curr.amount, 0);
+  
+  // For the detail view, we should fetch from all logs to be sure we have the data
+  // even if the selected date is outside the current month's visible interval
+  const allMeals = storage.getMealLogs();
+  const allWeights = storage.getWeightLogs();
+  const allWaters = storage.getWaterLogs();
+  const allExercises = storage.getExerciseLogs();
+
+  const dayMeals = allMeals.filter(m => m.date === selectedDateStr);
+  const dayWeight = allWeights.find(w => w.date === selectedDateStr);
+  const dayWater = allWaters.filter(w => w.date === selectedDateStr).reduce((acc, curr) => acc + curr.amount, 0);
+  const dayExercises = allExercises.filter(e => e.date === selectedDateStr);
+
+  const totalConsumed = dayMeals.reduce((acc, curr) => acc + (curr.calories || 0), 0);
+  const totalBurned = dayExercises.reduce((acc, curr) => acc + (curr.caloriesBurned || 0), 0);
+  const netDayCalories = totalConsumed - totalBurned;
 
   return (
     <div className="space-y-8">
@@ -121,6 +145,7 @@ export default function CalendarView({ profile }: CalendarViewProps) {
               const hasMeal = monthData.meals.some(m => m.date === dateStr);
               const hasWeight = monthData.weights.some(w => w.date === dateStr);
               const hasWater = monthData.waters.some(w => w.date === dateStr);
+              const hasExercise = monthData.exercises.some(e => e.date === dateStr);
               const isSelected = isSameDay(day, selectedDate);
               const isCurrentMonth = isSameMonth(day, currentMonth);
 
@@ -141,6 +166,7 @@ export default function CalendarView({ profile }: CalendarViewProps) {
                     {hasMeal && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-emerald-400'}`} />}
                     {hasWeight && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-400'}`} />}
                     {hasWater && <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-cyan-400'}`} />}
+                    {hasExercise && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-orange-500 shadow-sm shadow-orange-100'}`} />}
                   </div>
                 </button>
               );
@@ -161,6 +187,28 @@ export default function CalendarView({ profile }: CalendarViewProps) {
           </div>
 
           <div className="space-y-6">
+            {/* Daily Summary Section */}
+            <div className="p-5 rounded-3xl bg-emerald-600 text-white shadow-lg shadow-emerald-100">
+              <div className="flex items-center gap-2 mb-3">
+                <Flame className="w-4 h-4 text-emerald-100" />
+                <span className="text-xs font-bold text-emerald-100 uppercase tracking-wider">일일 칼로리 요약</span>
+              </div>
+              <div className="flex items-baseline gap-2 mb-4">
+                <h4 className="text-3xl font-black">{netDayCalories}</h4>
+                <span className="text-emerald-100 font-bold text-sm">kcal (순 섭취)</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/20 text-[10px] font-bold text-emerald-100">
+                <div className="flex flex-col">
+                  <span className="opacity-60 mb-1">총 섭취</span>
+                  <span className="text-white text-sm">{totalConsumed} kcal</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="opacity-60 mb-1">총 소모</span>
+                  <span className="text-white text-sm">{totalBurned} kcal</span>
+                </div>
+              </div>
+            </div>
+
             {/* Weight Section */}
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -187,6 +235,35 @@ export default function CalendarView({ profile }: CalendarViewProps) {
               </div>
             </div>
 
+            {/* Exercise Section */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Activity className="w-4 h-4 text-orange-500" />
+                <span className="text-sm font-bold text-stone-700">운동</span>
+              </div>
+              <div className="space-y-2">
+                {dayExercises.length > 0 ? dayExercises.map((ex, idx) => (
+                  <div key={idx} className="p-4 rounded-2xl bg-orange-50/50 border border-orange-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">
+                        {ex.type}
+                      </span>
+                      <span className="text-[10px] font-bold text-orange-400">
+                        {ex.duration}분
+                      </span>
+                    </div>
+                    {ex.caloriesBurned && (
+                      <p className="text-xs font-medium text-orange-900">{ex.caloriesBurned} kcal 소모</p>
+                    )}
+                  </div>
+                )) : (
+                  <div className="p-4 rounded-2xl bg-stone-50 border border-stone-100 text-stone-400 text-sm italic">
+                    기록 없음
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Meals Section */}
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -196,9 +273,16 @@ export default function CalendarView({ profile }: CalendarViewProps) {
               <div className="space-y-2">
                 {dayMeals.length > 0 ? dayMeals.map((meal, idx) => (
                   <div key={idx} className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100">
-                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest block mb-1">
-                      {meal.type === 'breakfast' ? '아침' : meal.type === 'lunch' ? '점심' : meal.type === 'dinner' ? '저녁' : '간식'}
-                    </span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest block">
+                        {meal.type === 'breakfast' ? '아침' : meal.type === 'lunch' ? '점심' : meal.type === 'dinner' ? '저녁' : '간식'}
+                      </span>
+                      {meal.calories && (
+                        <span className="text-[10px] font-bold text-emerald-600">
+                          {meal.calories} kcal
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm font-medium text-emerald-900">{meal.content}</p>
                   </div>
                 )) : (

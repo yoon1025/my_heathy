@@ -32,6 +32,7 @@ export default function Dashboard({ profile, setActiveTab }: DashboardProps) {
   const [todayWater, setTodayWater] = useState<number>(0);
   const [coachingMessage, setCoachingMessage] = useState<string | null>(null);
   const [isCoachingLoading, setIsCoachingLoading] = useState(false);
+  const [showWeightReminder, setShowWeightReminder] = useState(false);
   const today = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
@@ -39,6 +40,20 @@ export default function Dashboard({ profile, setActiveTab }: DashboardProps) {
 
     // Fetch weight logs for chart
     const allWeightLogs = storage.getWeightLogs();
+    
+    // 체중 기록 리마인더 확인
+    if (profile.targetWeight && profile.targetWeight > 0 && profile.targetWeightSetAt) {
+      const setDate = format(parseISO(profile.targetWeightSetAt), 'yyyy-MM-dd');
+      const hasWeightToday = allWeightLogs.some(log => log.date === today);
+      
+      // 목표 체중 설정일 다음 날부터, 오늘 기록이 없는 경우 표시
+      if (today > setDate && !hasWeightToday) {
+        setShowWeightReminder(true);
+      } else {
+        setShowWeightReminder(false);
+      }
+    }
+
     const sortedWeightLogs = [...allWeightLogs]
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-7);
@@ -136,6 +151,33 @@ export default function Dashboard({ profile, setActiveTab }: DashboardProps) {
                 </div>
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Weight Reminder */}
+      <AnimatePresence>
+        {showWeightReminder && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-blue-600 p-6 rounded-3xl shadow-lg shadow-blue-100 text-white flex flex-col md:flex-row items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+                <Scale className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h4 className="font-bold text-lg">오늘 당신의 체중은? ⚖️</h4>
+                <p className="text-blue-100 text-sm">목표 체중을 향해 잘 가고 있는지 확인해볼까요?</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveTab('weight')}
+              className="w-full md:w-auto px-6 py-3 bg-white text-blue-600 rounded-2xl font-bold text-sm hover:bg-blue-50 transition-all"
+            >
+              지금 기록하기
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

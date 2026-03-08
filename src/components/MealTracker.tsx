@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile, MealLog } from '../types';
 import { storage } from '../services/storage';
 import { analyzeMeal } from '../services/gemini';
-import { Utensils, Plus, Trash2, Calendar as CalendarIcon, Clock, X, Sparkles, Loader2 } from 'lucide-react';
+import { Utensils, Plus, Trash2, Calendar as CalendarIcon, Clock, X, Sparkles, Loader2, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 
@@ -12,6 +12,7 @@ interface MealTrackerProps {
 
 export default function MealTracker({ profile }: MealTrackerProps) {
   const [meals, setMeals] = useState<MealLog[]>([]);
+  const [todaySummary, setTodaySummary] = useState({ consumed: 0, burned: 0 });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [newMeal, setNewMeal] = useState({
@@ -30,6 +31,19 @@ export default function MealTracker({ profile }: MealTrackerProps) {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
     setMeals(sortedMeals);
+
+    // Calculate today's summary
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const consumed = allMeals
+      .filter(m => m.date === today)
+      .reduce((acc, curr) => acc + (curr.calories || 0), 0);
+    
+    const allExercises = storage.getExerciseLogs();
+    const burned = allExercises
+      .filter(e => e.date === today)
+      .reduce((acc, curr) => acc + (curr.caloriesBurned || 0), 0);
+      
+    setTodaySummary({ consumed, burned });
   };
 
   useEffect(() => {
@@ -112,6 +126,41 @@ export default function MealTracker({ profile }: MealTrackerProps) {
         </button>
       </header>
 
+      {/* Today's Summary Card */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-emerald-600 p-6 rounded-3xl shadow-lg shadow-emerald-100 text-white"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+            <Flame className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex items-center gap-1 text-[10px] font-bold bg-white/20 px-2 py-1 rounded-full uppercase tracking-wider">
+            오늘의 칼로리 현황
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+          <div>
+            <p className="text-emerald-100 text-xs font-medium mb-1">순 섭취량</p>
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-4xl font-black">{todaySummary.consumed - todaySummary.burned}</h2>
+              <span className="text-emerald-100 font-bold">kcal</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 md:col-span-2 pt-4 md:pt-0 border-t md:border-t-0 md:border-l border-white/20 md:pl-6">
+            <div>
+              <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-wider mb-1 opacity-60">총 섭취</p>
+              <p className="text-xl font-bold">{todaySummary.consumed} <span className="text-xs opacity-60">kcal</span></p>
+            </div>
+            <div>
+              <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-wider mb-1 opacity-60">총 소모 (운동)</p>
+              <p className="text-xl font-bold text-emerald-200">{todaySummary.burned} <span className="text-xs opacity-60">kcal</span></p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <AnimatePresence>
           {meals.map((meal) => (
@@ -128,7 +177,7 @@ export default function MealTracker({ profile }: MealTrackerProps) {
                 </span>
                 <button 
                   onClick={() => meal.id && handleDeleteMeal(meal.id)}
-                  className="text-stone-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                  className="text-stone-300 hover:text-red-500 transition-all"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

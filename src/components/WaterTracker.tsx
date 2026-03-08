@@ -139,7 +139,7 @@ export default function WaterTracker({ profile }: WaterTrackerProps) {
                   </div>
                   <button 
                     onClick={() => log.id && handleDeleteLog(log.id)}
-                    className="text-stone-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                    className="text-stone-300 hover:text-red-500 transition-all"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

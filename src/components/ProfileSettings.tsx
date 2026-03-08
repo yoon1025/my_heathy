@@ -57,6 +57,12 @@ export default function ProfileSettings({ profile, setProfile }: ProfileSettings
     setIsSaving(true);
     try {
       const updatedProfile = { ...profile, ...formData };
+      
+      // 목표 체중이 설정되거나 변경된 경우 날짜 기록
+      if (formData.targetWeight > 0 && formData.targetWeight !== profile.targetWeight) {
+        updatedProfile.targetWeightSetAt = new Date().toISOString();
+      }
+      
       storage.saveProfile(updatedProfile);
       setProfile(updatedProfile);
       setShowSuccess(true);
@@ -190,7 +196,7 @@ export default function ProfileSettings({ profile, setProfile }: ProfileSettings
               <div className="flex items-center justify-between p-4 rounded-2xl bg-stone-50 border border-stone-100">
                 <div>
                   <p className="text-sm font-bold text-stone-700">푸시 알림 활성화</p>
-                  <p className="text-xs text-stone-400">식사 시간 및 수분 섭취 알림을 받습니다.</p>
+                  <p className="text-xs text-stone-400">수분 섭취 알림을 받습니다.</p>
                 </div>
                 <button
                   type="button"

@@ -3,6 +3,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   targetWeight?: number;
+  targetWeightSetAt?: string; // ISO date string
   dailyWaterGoal?: number;
   geminiApiKey?: string;
   createdAt: string;
