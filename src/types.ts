@@ -21,7 +21,18 @@ export interface MealLog {
   date: string; // YYYY-MM-DD
   type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   content: string;
+  calories?: number;
   imageUrl?: string;
+  createdAt: string;
+}
+
+export interface ExerciseLog {
+  id?: string;
+  uid: string;
+  date: string; // YYYY-MM-DD
+  type: string; // e.g., Walking, Running, Gym
+  duration: number; // minutes
+  caloriesBurned?: number;
   createdAt: string;
 }
 

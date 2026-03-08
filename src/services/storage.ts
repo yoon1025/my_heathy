@@ -1,10 +1,11 @@
-import { UserProfile, WeightLog, MealLog, WaterLog } from '../types';
+import { UserProfile, WeightLog, MealLog, WaterLog, ExerciseLog } from '../types';
 
 const STORAGE_KEYS = {
   PROFILE: 'greens_profile',
   WEIGHT_LOGS: 'greens_weight_logs',
   MEAL_LOGS: 'greens_meal_logs',
   WATER_LOGS: 'greens_water_logs',
+  EXERCISE_LOGS: 'greens_exercise_logs',
 };
 
 export const storage = {
@@ -47,6 +48,22 @@ export const storage = {
   deleteMealLog: (id: string) => {
     const logs = storage.getMealLogs();
     localStorage.setItem(STORAGE_KEYS.MEAL_LOGS, JSON.stringify(logs.filter(l => l.id !== id)));
+  },
+
+  // Exercise Logs
+  getExerciseLogs: (): ExerciseLog[] => {
+    const data = localStorage.getItem(STORAGE_KEYS.EXERCISE_LOGS);
+    return data ? JSON.parse(data) : [];
+  },
+  addExerciseLog: (log: ExerciseLog) => {
+    const logs = storage.getExerciseLogs();
+    const newLog = { ...log, id: crypto.randomUUID() };
+    localStorage.setItem(STORAGE_KEYS.EXERCISE_LOGS, JSON.stringify([newLog, ...logs]));
+    return newLog;
+  },
+  deleteExerciseLog: (id: string) => {
+    const logs = storage.getExerciseLogs();
+    localStorage.setItem(STORAGE_KEYS.EXERCISE_LOGS, JSON.stringify(logs.filter(l => l.id !== id)));
   },
 
   // Water Logs

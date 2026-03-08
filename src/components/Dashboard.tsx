@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, WeightLog, MealLog } from '../types';
+import { UserProfile, WeightLog, MealLog, ExerciseLog } from '../types';
 import { storage } from '../services/storage';
 import { 
   Utensils, 
@@ -9,7 +9,9 @@ import {
   TrendingDown,
   TrendingUp,
   Award,
-  Plus
+  Plus,
+  Activity,
+  Flame
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format, isSameDay, parseISO } from 'date-fns';
@@ -23,6 +25,7 @@ interface DashboardProps {
 export default function Dashboard({ profile, setActiveTab }: DashboardProps) {
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [todayMeals, setTodayMeals] = useState<MealLog[]>([]);
+  const [todayExercise, setTodayExercise] = useState<ExerciseLog[]>([]);
   const [todayWater, setTodayWater] = useState<number>(0);
   const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -41,6 +44,11 @@ export default function Dashboard({ profile, setActiveTab }: DashboardProps) {
     const filteredMeals = allMealLogs.filter(m => m.date === today);
     setTodayMeals(filteredMeals);
 
+    // Fetch today's exercise
+    const allExerciseLogs = storage.getExerciseLogs();
+    const filteredExercise = allExerciseLogs.filter(e => e.date === today);
+    setTodayExercise(filteredExercise);
+
     // Fetch today's water
     const allWaterLogs = storage.getWaterLogs();
     const totalWater = allWaterLogs
@@ -56,6 +64,10 @@ export default function Dashboard({ profile, setActiveTab }: DashboardProps) {
     : 0;
 
   const waterProgress = profile?.dailyWaterGoal ? Math.min((todayWater / profile.dailyWaterGoal) * 100, 100) : 0;
+
+  const totalCaloriesConsumed = todayMeals.reduce((acc, curr) => acc + (curr.calories || 0), 0);
+  const totalCaloriesBurned = todayExercise.reduce((acc, curr) => acc + (curr.caloriesBurned || 0), 0);
+  const netCalories = totalCaloriesConsumed - totalCaloriesBurned;
 
   return (
     <div className="space-y-8">
@@ -126,17 +138,21 @@ export default function Dashboard({ profile, setActiveTab }: DashboardProps) {
         >
           <div className="flex items-center justify-between mb-4">
             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-              <Award className="w-5 h-5 text-white" />
+              <Flame className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex items-center gap-1 text-[10px] font-bold bg-white/20 px-2 py-1 rounded-full">
+              오늘의 칼로리
             </div>
           </div>
-          <p className="text-emerald-100 text-sm font-medium mb-1">목표 체중까지</p>
+          <p className="text-emerald-100 text-sm font-medium mb-1">순 섭취량</p>
           <div className="flex items-baseline gap-2">
-            <h2 className="text-3xl font-bold">
-              {profile?.targetWeight && currentWeight ? Math.max(0, currentWeight - profile.targetWeight).toFixed(1) : '--'}
-            </h2>
-            <span className="text-emerald-100 font-medium">kg 남음</span>
+            <h2 className="text-3xl font-bold">{netCalories}</h2>
+            <span className="text-emerald-100 font-medium">kcal</span>
           </div>
-          <p className="mt-2 text-xs text-emerald-100 opacity-80">목표: {profile?.targetWeight || '--'}kg</p>
+          <div className="mt-2 flex items-center gap-3 text-[10px] text-emerald-100 opacity-80">
+            <span>섭취: {totalCaloriesConsumed}</span>
+            <span>소모: {totalCaloriesBurned}</span>
+          </div>
         </motion.div>
       </div>
 
@@ -189,35 +205,79 @@ export default function Dashboard({ profile, setActiveTab }: DashboardProps) {
         {/* Today's Meals */}
         <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-stone-900">오늘의 식단</h3>
-            <button onClick={() => setActiveTab('meals')} className="text-xs font-semibold text-emerald-600 hover:underline">기록하기</button>
+            <h3 className="font-bold text-stone-900">오늘의 활동</h3>
+            <div className="flex gap-2">
+              <button onClick={() => setActiveTab('meals')} className="text-xs font-semibold text-emerald-600 hover:underline">식단</button>
+              <button onClick={() => setActiveTab('exercise')} className="text-xs font-semibold text-emerald-600 hover:underline">운동</button>
+            </div>
           </div>
-          <div className="space-y-4">
-            {['breakfast', 'lunch', 'dinner'].map((type) => {
-              const meal = todayMeals.find(m => m.type === type);
-              const labels: Record<string, string> = { breakfast: '아침', lunch: '점심', dinner: '저녁' };
-              return (
-                <div key={type} className="flex items-center gap-4 p-3 rounded-2xl bg-stone-50 border border-stone-100">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${meal ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-200 text-stone-400'}`}>
-                    <Utensils className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs font-bold text-stone-400 uppercase tracking-wider">{labels[type]}</p>
-                    <p className={`text-sm font-medium ${meal ? 'text-stone-900' : 'text-stone-400 italic'}`}>
-                      {meal ? meal.content : '기록이 없습니다'}
-                    </p>
-                  </div>
-                  {!meal && (
+          
+          <div className="space-y-6">
+            {/* Meals Summary */}
+            <div>
+              <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">식단 요약</p>
+              <div className="space-y-2">
+                {['breakfast', 'lunch', 'dinner'].map((type) => {
+                  const meal = todayMeals.find(m => m.type === type);
+                  const labels: Record<string, string> = { breakfast: '아침', lunch: '점심', dinner: '저녁' };
+                  return (
+                    <div key={type} className="flex items-center gap-3 p-2 rounded-xl bg-stone-50 border border-stone-100">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${meal ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-200 text-stone-400'}`}>
+                        <Utensils className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-stone-400">{labels[type]}</p>
+                        <p className={`text-xs font-medium truncate ${meal ? 'text-stone-900' : 'text-stone-400 italic'}`}>
+                          {meal ? meal.content : '기록 없음'}
+                        </p>
+                      </div>
+                      {meal?.calories && (
+                        <span className="text-[10px] font-bold text-emerald-600">{meal.calories}kcal</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Exercise Summary */}
+            <div>
+              <p className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-3">운동 요약</p>
+              <div className="space-y-2">
+                {todayExercise.length > 0 ? (
+                  todayExercise.slice(0, 2).map((ex) => (
+                    <div key={ex.id} className="flex items-center gap-3 p-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-emerald-400">운동</p>
+                        <p className="text-xs font-bold text-stone-900 truncate">{ex.type}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-stone-400">{ex.duration}분</p>
+                        {ex.caloriesBurned && (
+                          <p className="text-[10px] font-bold text-emerald-600">-{ex.caloriesBurned}kcal</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 rounded-xl bg-stone-50 border border-dashed border-stone-200 text-center">
+                    <p className="text-xs text-stone-400 italic">오늘의 운동 기록이 없습니다.</p>
                     <button 
-                      onClick={() => setActiveTab('meals')}
-                      className="w-8 h-8 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-400 hover:text-emerald-600 hover:border-emerald-200 transition-all"
+                      onClick={() => setActiveTab('exercise')}
+                      className="mt-2 text-[10px] font-bold text-emerald-600 hover:underline"
                     >
-                      <Plus className="w-4 h-4" />
+                      기록하러 가기
                     </button>
-                  )}
-                </div>
-              );
-            })}
+                  </div>
+                )}
+                {todayExercise.length > 2 && (
+                  <p className="text-[10px] text-center text-stone-400 font-medium">외 {todayExercise.length - 2}건의 운동 더보기</p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

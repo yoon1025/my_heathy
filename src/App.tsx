@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from './types';
 import { storage } from './services/storage';
+import { notificationService } from './services/notifications';
 import { 
   LayoutDashboard, 
   Utensils, 
@@ -8,7 +9,8 @@ import {
   Scale, 
   Calendar as CalendarIcon, 
   User as UserIcon,
-  LogOut
+  LogOut,
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -17,10 +19,11 @@ import Dashboard from './components/Dashboard';
 import MealTracker from './components/MealTracker';
 import WaterTracker from './components/WaterTracker';
 import WeightTracker from './components/WeightTracker';
+import ExerciseTracker from './components/ExerciseTracker';
 import CalendarView from './components/CalendarView';
 import ProfileSettings from './components/ProfileSettings';
 
-type Tab = 'dashboard' | 'meals' | 'water' | 'weight' | 'calendar' | 'profile';
+type Tab = 'dashboard' | 'meals' | 'water' | 'weight' | 'exercise' | 'calendar' | 'profile';
 
 export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -48,6 +51,27 @@ export default function App() {
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    // Water reminder logic
+    const interval = setInterval(() => {
+      const notificationsEnabled = localStorage.getItem('notifications_enabled') === 'true';
+      if (notificationsEnabled) {
+        const now = new Date();
+        const hour = now.getHours();
+        
+        // Only remind between 9 AM and 9 PM
+        if (hour >= 9 && hour <= 21) {
+          notificationService.sendNotification(
+            '수분 섭취 알림 💧',
+            '지금 시원한 물 한 잔 어떠신가요? 건강을 위해 수분을 충전하세요!'
+          );
+        }
+      }
+    }, 1000 * 60 * 60 * 2); // Every 2 hours
+
+    return () => clearInterval(interval);
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-white">
@@ -68,6 +92,7 @@ export default function App() {
       case 'meals': return <MealTracker profile={profile} />;
       case 'water': return <WaterTracker profile={profile} />;
       case 'weight': return <WeightTracker profile={profile} />;
+      case 'exercise': return <ExerciseTracker profile={profile} />;
       case 'calendar': return <CalendarView profile={profile} />;
       case 'profile': return <ProfileSettings profile={profile} setProfile={(p) => {
         setProfile(p);
@@ -80,6 +105,7 @@ export default function App() {
   const navItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: '홈' },
     { id: 'meals', icon: Utensils, label: '식단' },
+    { id: 'exercise', icon: Activity, label: '운동' },
     { id: 'water', icon: Droplets, label: '수분' },
     { id: 'weight', icon: Scale, label: '체중' },
     { id: 'calendar', icon: CalendarIcon, label: '기록' },

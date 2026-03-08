@@ -15,6 +15,7 @@ export default function MealTracker({ profile }: MealTrackerProps) {
   const [newMeal, setNewMeal] = useState({
     type: 'breakfast' as MealLog['type'],
     content: '',
+    calories: '',
     date: format(new Date(), 'yyyy-MM-dd')
   });
 
@@ -42,10 +43,11 @@ export default function MealTracker({ profile }: MealTrackerProps) {
       date: newMeal.date,
       type: newMeal.type,
       content: newMeal.content,
+      calories: newMeal.calories ? parseInt(newMeal.calories) : undefined,
       createdAt: new Date().toISOString()
     });
     
-    setNewMeal({ ...newMeal, content: '' });
+    setNewMeal({ ...newMeal, content: '', calories: '' });
     setIsModalOpen(false);
     fetchMeals();
   };
@@ -108,9 +110,15 @@ export default function MealTracker({ profile }: MealTrackerProps) {
                 </button>
               </div>
               
-              <p className="text-stone-800 font-medium mb-6 leading-relaxed">
+              <p className="text-stone-800 font-medium mb-2 leading-relaxed">
                 {meal.content}
               </p>
+
+              {meal.calories && (
+                <p className="text-emerald-600 font-bold text-sm mb-4">
+                  {meal.calories} kcal
+                </p>
+              )}
 
               <div className="flex items-center justify-between text-xs text-stone-400 font-medium pt-4 border-t border-stone-50">
                 <div className="flex items-center gap-1">
@@ -196,9 +204,23 @@ export default function MealTracker({ profile }: MealTrackerProps) {
                     placeholder="무엇을 드셨나요? (예: 닭가슴살 샐러드, 현미밥)"
                     value={newMeal.content}
                     onChange={(e) => setNewMeal({ ...newMeal, content: e.target.value })}
-                    rows={4}
+                    rows={3}
                     className="w-full px-4 py-3 rounded-2xl bg-stone-50 border border-stone-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none resize-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-stone-700 mb-2">칼로리 (선택)</label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      placeholder="0"
+                      value={newMeal.calories}
+                      onChange={(e) => setNewMeal({ ...newMeal, calories: e.target.value })}
+                      className="w-full px-4 py-3 rounded-2xl bg-stone-50 border border-stone-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 text-sm font-bold">kcal</span>
+                  </div>
                 </div>
 
                 <button 

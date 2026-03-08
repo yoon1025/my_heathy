@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { storage } from '../services/storage';
-import { User as UserIcon, Target, Droplets, Save, CheckCircle2 } from 'lucide-react';
+import { notificationService } from '../services/notifications';
+import { User as UserIcon, Target, Droplets, Save, CheckCircle2, Bell, BellOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ProfileSettingsProps {
@@ -15,8 +16,38 @@ export default function ProfileSettings({ profile, setProfile }: ProfileSettings
     targetWeight: profile?.targetWeight || 0,
     dailyWaterGoal: profile?.dailyWaterGoal || 2000,
   });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<string>('default');
+
+  useEffect(() => {
+    setPermissionStatus(notificationService.getPermissionStatus());
+    // 로컬 스토리지에서 알림 설정 불러오기 (간단히 구현)
+    const savedNotify = localStorage.getItem('notifications_enabled') === 'true';
+    setNotificationsEnabled(savedNotify);
+  }, []);
+
+  const handleToggleNotifications = async () => {
+    if (!notificationsEnabled) {
+      const granted = await notificationService.requestPermission();
+      if (granted) {
+        setNotificationsEnabled(true);
+        localStorage.setItem('notifications_enabled', 'true');
+        notificationService.sendNotification('알림 설정 완료', 'Greens에서 건강한 소식을 전해드릴게요! 🌱');
+      } else {
+        alert('알림 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.');
+      }
+    } else {
+      setNotificationsEnabled(false);
+      localStorage.setItem('notifications_enabled', 'false');
+    }
+    setPermissionStatus(notificationService.getPermissionStatus());
+  };
+
+  const handleTestNotification = () => {
+    notificationService.sendNotification('테스트 알림', '알림 기능이 정상적으로 작동합니다! 🚀');
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,31 +149,54 @@ export default function ProfileSettings({ profile, setProfile }: ProfileSettings
 
           {/* Reminders */}
           <div className="space-y-6">
-            <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-stone-400" />
-              알림 설정 (준비 중)
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                <Bell className="w-5 h-5 text-stone-400" />
+                알림 설정
+              </h3>
+              {notificationsEnabled && (
+                <button 
+                  type="button"
+                  onClick={handleTestNotification}
+                  className="text-xs font-bold text-emerald-600 hover:underline"
+                >
+                  테스트 알림 보내기
+                </button>
+              )}
+            </div>
+            
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 rounded-2xl bg-stone-50 border border-stone-100">
                 <div>
-                  <p className="text-sm font-bold text-stone-700">식사 시간 알림</p>
-                  <p className="text-xs text-stone-400">아침, 점심, 저녁 식사 시간에 맞춰 알림을 보냅니다.</p>
+                  <p className="text-sm font-bold text-stone-700">푸시 알림 활성화</p>
+                  <p className="text-xs text-stone-400">식사 시간 및 수분 섭취 알림을 받습니다.</p>
                 </div>
-                <div className="w-12 h-6 bg-stone-200 rounded-full relative cursor-not-allowed">
-                  <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm" />
-                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleNotifications}
+                  className={`w-12 h-6 rounded-full relative transition-all ${
+                    notificationsEnabled ? 'bg-emerald-500' : 'bg-stone-200'
+                  }`}
+                >
+                  <motion.div 
+                    animate={{ x: notificationsEnabled ? 24 : 4 }}
+                    className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm" 
+                  />
+                </button>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-stone-50 border border-stone-100">
-                <div>
-                  <p className="text-sm font-bold text-stone-700">물 마시기 알림</p>
-                  <p className="text-xs text-stone-400">2시간마다 수분 섭취를 권장하는 알림을 보냅니다.</p>
+
+              {permissionStatus === 'denied' && (
+                <div className="p-4 rounded-2xl bg-red-50 border border-red-100 flex items-center gap-3">
+                  <BellOff className="w-5 h-5 text-red-500" />
+                  <p className="text-xs text-red-600 font-medium">
+                    브라우저에서 알림 권한이 차단되어 있습니다. 설정에서 권한을 허용해주세요.
+                  </p>
                 </div>
-                <div className="w-12 h-6 bg-stone-200 rounded-full relative cursor-not-allowed">
-                  <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm" />
-                </div>
-              </div>
+              )}
             </div>
-            <p className="text-[10px] text-stone-400 text-center italic">푸시 알림 기능은 다음 업데이트에서 정식 지원될 예정입니다.</p>
+            <p className="text-[10px] text-stone-400 text-center italic">
+              스마트폰에서 '홈 화면에 추가'를 하면 앱처럼 사용하며 알림을 받을 수 있습니다.
+            </p>
           </div>
         </div>
 
