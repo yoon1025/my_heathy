@@ -4,6 +4,7 @@ export interface UserProfile {
   displayName: string;
   targetWeight?: number;
   dailyWaterGoal?: number;
+  geminiApiKey?: string;
   createdAt: string;
 }
 

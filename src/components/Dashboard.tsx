@@ -11,11 +11,14 @@ import {
   Award,
   Plus,
   Activity,
-  Flame
+  Flame,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { getAICoaching } from '../services/gemini';
 
 interface DashboardProps {
   profile: UserProfile | null;
@@ -27,6 +30,8 @@ export default function Dashboard({ profile, setActiveTab }: DashboardProps) {
   const [todayMeals, setTodayMeals] = useState<MealLog[]>([]);
   const [todayExercise, setTodayExercise] = useState<ExerciseLog[]>([]);
   const [todayWater, setTodayWater] = useState<number>(0);
+  const [coachingMessage, setCoachingMessage] = useState<string | null>(null);
+  const [isCoachingLoading, setIsCoachingLoading] = useState(false);
   const today = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
@@ -69,12 +74,71 @@ export default function Dashboard({ profile, setActiveTab }: DashboardProps) {
   const totalCaloriesBurned = todayExercise.reduce((acc, curr) => acc + (curr.caloriesBurned || 0), 0);
   const netCalories = totalCaloriesConsumed - totalCaloriesBurned;
 
+  const handleGetCoaching = async () => {
+    if (!profile) return;
+    setIsCoachingLoading(true);
+    try {
+      const message = await getAICoaching(profile, todayMeals, todayExercise, todayWater);
+      setCoachingMessage(message || '코칭 메시지를 가져오지 못했습니다.');
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || 'AI 코칭을 가져오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsCoachingLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-bold text-stone-900 mb-1">안녕하세요, {profile?.displayName}님! 👋</h1>
-        <p className="text-stone-500">오늘도 건강한 하루를 만들어볼까요?</p>
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-stone-900 mb-1">안녕하세요, {profile?.displayName}님! 👋</h1>
+          <p className="text-stone-500">오늘도 건강한 하루를 만들어볼까요?</p>
+        </div>
+        <button
+          onClick={handleGetCoaching}
+          disabled={isCoachingLoading}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all disabled:opacity-50"
+        >
+          {isCoachingLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+          AI 데일리 코칭 받기
+        </button>
       </header>
+
+      <AnimatePresence>
+        {coachingMessage && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-3xl border border-emerald-100 shadow-sm relative">
+              <button 
+                onClick={() => setCoachingMessage(null)}
+                className="absolute top-4 right-4 text-emerald-400 hover:text-emerald-600"
+              >
+                <Plus className="w-4 h-4 rotate-45" />
+              </button>
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
+                  <Sparkles className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-emerald-900 mb-1 text-sm">AI 건강 코치의 조언</h4>
+                  <p className="text-emerald-800 text-sm leading-relaxed whitespace-pre-wrap">
+                    {coachingMessage}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

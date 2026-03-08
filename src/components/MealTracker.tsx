@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, MealLog } from '../types';
 import { storage } from '../services/storage';
-import { Utensils, Plus, Trash2, Calendar as CalendarIcon, Clock, X } from 'lucide-react';
+import { analyzeMeal } from '../services/gemini';
+import { Utensils, Plus, Trash2, Calendar as CalendarIcon, Clock, X, Sparkles, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 
@@ -12,6 +13,7 @@ interface MealTrackerProps {
 export default function MealTracker({ profile }: MealTrackerProps) {
   const [meals, setMeals] = useState<MealLog[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [newMeal, setNewMeal] = useState({
     type: 'breakfast' as MealLog['type'],
     content: '',
@@ -56,6 +58,28 @@ export default function MealTracker({ profile }: MealTrackerProps) {
     if (!profile) return;
     storage.deleteMealLog(id);
     fetchMeals();
+  };
+
+  const handleAnalyzeMeal = async () => {
+    if (!newMeal.content) {
+      alert('식단 내용을 먼저 입력해주세요.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const calories = await analyzeMeal(newMeal.content);
+      if (calories) {
+        setNewMeal({ ...newMeal, calories: calories.toString() });
+      } else {
+        alert('칼로리를 분석할 수 없습니다. 직접 입력해주세요.');
+      }
+    } catch (error: any) {
+      console.error('AI Analysis Error:', error);
+      alert(error.message || 'AI 분석 중 오류가 발생했습니다.');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const mealTypeLabels: Record<string, string> = {
@@ -199,7 +223,22 @@ export default function MealTracker({ profile }: MealTrackerProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-stone-700 mb-2">내용</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-bold text-stone-700">내용</label>
+                    <button
+                      type="button"
+                      onClick={handleAnalyzeMeal}
+                      disabled={isAnalyzing || !newMeal.content}
+                      className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 disabled:opacity-50 transition-all"
+                    >
+                      {isAnalyzing ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3 h-3" />
+                      )}
+                      AI 칼로리 분석
+                    </button>
+                  </div>
                   <textarea 
                     placeholder="무엇을 드셨나요? (예: 닭가슴살 샐러드, 현미밥)"
                     value={newMeal.content}

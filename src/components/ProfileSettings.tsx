@@ -15,6 +15,7 @@ export default function ProfileSettings({ profile, setProfile }: ProfileSettings
     displayName: profile?.displayName || '',
     targetWeight: profile?.targetWeight || 0,
     dailyWaterGoal: profile?.dailyWaterGoal || 2000,
+    geminiApiKey: profile?.geminiApiKey || '',
   });
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -142,6 +143,26 @@ export default function ProfileSettings({ profile, setProfile }: ProfileSettings
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold text-sm">ml</span>
                 </div>
               </div>
+            </div>
+            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-100">
+              <div className="flex items-center gap-2 mb-4">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                <h4 className="text-sm font-bold text-stone-700">개인 Gemini API 키 (선택)</h4>
+              </div>
+              <p className="text-xs text-stone-500 mb-3">
+                본인의 Gemini API 키를 입력하면 개인 할당량을 사용하여 AI 기능을 이용할 수 있습니다. 
+                입력하지 않으면 시스템 기본 키를 사용합니다.
+              </p>
+              <input 
+                type="password" 
+                placeholder="AI Studio에서 발급받은 API 키 입력"
+                value={formData.geminiApiKey}
+                onChange={(e) => setFormData({ ...formData, geminiApiKey: e.target.value })}
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-stone-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
+              />
+              <p className="mt-2 text-[10px] text-stone-400">
+                * 키는 브라우저 로컬 저장소에만 안전하게 저장됩니다.
+              </p>
             </div>
           </div>
 
