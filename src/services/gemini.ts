@@ -17,7 +17,7 @@ export const getGeminiAI = () => {
 export const analyzeMeal = async (mealContent: string) => {
   const ai = getGeminiAI();
   const model = ai.models.generateContent({
-    model: "gemini-1.5-flash", // Using a stable model
+    model: "gemini-3-flash-preview", // Using a stable model
     contents: [{
       parts: [{
         text: `다음 식단 내용에 대해 예상 칼로리를 숫자로만 알려줘. 만약 여러 음식이면 합계를 알려줘. 
@@ -38,7 +38,7 @@ export const analyzeMeal = async (mealContent: string) => {
 export const getAICoaching = async (profile: UserProfile, meals: MealLog[], exercises: ExerciseLog[], water: number) => {
   const ai = getGeminiAI();
   const model = ai.models.generateContent({
-    model: "gemini-1.5-flash",
+    model: "gemini-3-flash-preview",
     contents: [{
       parts: [{
         text: `당신은 전문 건강 코치입니다. 다음 사용자의 오늘 하루 기록을 바탕으로 친절하고 전문적인 건강 피드백을 제공해주세요.
